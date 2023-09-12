@@ -6,10 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-    "strings"
 	"net/http"
 	"sync"
-    "github.com/golang-jwt/jwt/v5"
 )
 
 var urlMap = make(map[string]string)
@@ -17,11 +15,6 @@ var mu sync.Mutex
 
 type URLMsg struct {
     URL string `json:"url"`
-}
-
-type User struct {
-    ID int `json:"id"`
-    Username string `json:"username"`
 }
 
 func main() {
@@ -86,57 +79,7 @@ func generateShortURL(longURL string) string {
     io.WriteString(hasher, longURL)
     hash := hex.EncodeToString(hasher.Sum(nil))
     return hash[:6]
-
 }
 
 
-func generateToken(userID int, username string) (string, error) {
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "userID": userID,
-        "username": username,
-    })
 
-    secretKey := []byte("super-secret-key")
-    tokenString, err := token.SignedString(secretKey)
-    if err != nil {
-        return "", err
-    }
-    return tokenString, nil
-}
-
-func requireAuth(next http.HandlerFunc) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        tokenString := extractTokenFromRequest(r)
-
-        if tokenString == "" {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
-            return
-        }
-
-        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-            return []byte("super-secret-key"), nil
-        })
-
-        if err != nil || !token.Valid {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
-            return
-        }
-
-        next.ServeHTTP(w, r)
-    }
-}
-
-func extractTokenFromRequest(r *http.Request) string {
-    authHeader := r.Header.Get("Authorization")
-
-    if authHeader == "" {
-        return ""
-    }
-
-    parts := strings.Split(authHeader, " ")
-    if len(parts) != 2 || parts[0] != "Bearer" {
-        return ""
-    }
-
-    return parts[1]
-}
